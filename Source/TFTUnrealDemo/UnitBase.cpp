@@ -45,7 +45,7 @@ AUnitBase::AUnitBase()
     DeathMontage = nullptr;
 
     MovementSpeed = 300.0f;
-    StoppingDistance = 140.0f;
+    StoppingDistance = 50.0f;
 
     CurrentState = EUnitState::Bench;
     AttackCooldown = 0.0f;
@@ -71,6 +71,9 @@ void AUnitBase::BeginPlay()
 {
     Super::BeginPlay();
 
+    UE_LOG(LogTemp, Error, TEXT("🚨🚨🚨 HELLO FROM C++ BEGINPLAY! 🚨🚨🚨"));
+    UE_LOG(LogTemp, Error, TEXT("Unit name is: %s"), *UnitName);
+
     // Initialize stats
     CurrentHealth = MaxHealth;
     CurrentMana = 0.0f;
@@ -86,6 +89,9 @@ void AUnitBase::BeginPlay()
 
     UE_LOG(LogTemp, Log, TEXT("✅ %s initialized - HP: %.0f/%.0f, Team: %d"),
         *UnitName, CurrentHealth, MaxHealth, (int32)Team);
+
+    SetState(EUnitState::Combat);
+    UE_LOG(LogTemp, Warning, TEXT("🚨 SetState called from C++ successfully! 🚨"));
 }
 
 // ============================================================================
