@@ -8,6 +8,7 @@
 // Forward declarations
 class UAnimMontage;
 class AAIController;
+class UWidgetComponent;
 
 // ============================================================================
 // ENUMS
@@ -198,6 +199,13 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     virtual void CastAbility();
+
+    // ========================================================================
+    // PROPERTIES - UI
+    // ========================================================================
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+    UWidgetComponent* HealthBarWidget;
 
     // ========================================================================
     // PUBLIC METHODS - Movement

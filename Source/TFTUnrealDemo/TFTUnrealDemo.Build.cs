@@ -15,7 +15,8 @@ public class TFTUnrealDemo : ModuleRules
             "InputCore",
             "AIModule",
             "GameplayTasks",
-            "NavigationSystem"
+            "NavigationSystem",
+            "UMG" 
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

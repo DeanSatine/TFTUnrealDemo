@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "Components/WidgetComponent.h"
 
 // ============================================================================
 // CONSTRUCTOR
@@ -18,7 +19,12 @@ AUnitBase::AUnitBase()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Initialize default values
+    HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
+    HealthBarWidget->SetupAttachment(RootComponent);
+    HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f)); 
+    HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
+    HealthBarWidget->SetDrawSize(FVector2D(150.0f, 30.0f));
+
     UnitName = TEXT("Unit");
     StarLevel = 1;
     Team = ETeam::Player;
@@ -74,6 +80,20 @@ void AUnitBase::BeginPlay()
     UE_LOG(LogTemp, Error, TEXT("🚨🚨🚨 HELLO FROM C++ BEGINPLAY! 🚨🚨🚨"));
     UE_LOG(LogTemp, Error, TEXT("Unit name is: %s"), *UnitName);
 
+    if (HealthBarWidget)
+    {
+        UUserWidget* Widget = HealthBarWidget->GetWidget();
+        if (Widget)
+        {
+            // Set the OwningUnit variable we created
+            FName PropertyName = FName(TEXT("OwningUnit"));
+            FObjectProperty* Prop = FindFProperty<FObjectProperty>(Widget->GetClass(), PropertyName);
+            if (Prop)
+            {
+                Prop->SetObjectPropertyValue_InContainer(Widget, this);
+            }
+        }
+    }
     // Initialize stats
     CurrentHealth = MaxHealth;
     CurrentMana = 0.0f;
