@@ -184,6 +184,8 @@ public:
     // ========================================================================
     // PUBLIC METHODS - Combat
     // ========================================================================
+    UFUNCTION(BlueprintCallable, Category = "Unit Info")
+    AUnitBase* GetOwningUnit() { return this; }
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void AttemptAutoAttack();
@@ -236,7 +238,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Reset")
     void FullResetToPrep();
-
+    void UpdateHealthBarWidget();
     // ========================================================================
     // PUBLIC METHODS - Death
     // ========================================================================
@@ -274,4 +276,5 @@ private:
 
 public:
     virtual void Tick(float DeltaTime) override;
+
 };

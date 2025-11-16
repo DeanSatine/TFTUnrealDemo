@@ -317,6 +317,23 @@ void AUnitBase::DealDamage(AUnitBase* Target, float Damage, EDamageType DamageTy
     Target->TakeDamage(DamageInfo);
 }
 
+void AUnitBase::UpdateHealthBarWidget()
+{
+    if (HealthBarWidget)
+    {
+        UUserWidget* Widget = HealthBarWidget->GetWidget();
+        if (Widget)
+        {
+            // Call the UpdateBars function on the widget
+            UFunction* UpdateBarsFunc = Widget->FindFunction(FName(TEXT("UpdateBars")));
+            if (UpdateBarsFunc)
+            {
+                Widget->ProcessEvent(UpdateBarsFunc, nullptr);
+            }
+        }
+    }
+}
+
 void AUnitBase::TakeDamage(const FDamageInfo& DamageInfo)
 {
     if (CurrentState == EUnitState::Bench)
@@ -332,6 +349,8 @@ void AUnitBase::TakeDamage(const FDamageInfo& DamageInfo)
     {
         GainMana(1.0f);
     }
+
+    UpdateHealthBarWidget();
 
     FString DamageTypeStr = DamageInfo.Type == EDamageType::Physical ? TEXT("Physical") :
         DamageInfo.Type == EDamageType::Magical ? TEXT("Magical") : TEXT("True");
@@ -374,6 +393,9 @@ float AUnitBase::CalculateDamageReduction(float IncomingDamage, EDamageType Dama
 void AUnitBase::GainMana(float Amount)
 {
     CurrentMana += Amount;
+
+    // ADD THIS: Update the mana bar widget
+    UpdateHealthBarWidget();
 
     UE_LOG(LogTemp, Log, TEXT("✨ %s gained %.1f mana → %.1f/%.1f"), *UnitName, Amount, CurrentMana, MaxMana);
 
