@@ -80,21 +80,7 @@ void AUnitBase::BeginPlay()
     UE_LOG(LogTemp, Error, TEXT("🚨🚨🚨 HELLO FROM C++ BEGINPLAY! 🚨🚨🚨"));
     UE_LOG(LogTemp, Error, TEXT("Unit name is: %s"), *UnitName);
 
-    if (HealthBarWidget)
-    {
-        UUserWidget* Widget = HealthBarWidget->GetWidget();
-        if (Widget)
-        {
-            // Set the OwningUnit variable we created
-            FName PropertyName = FName(TEXT("OwningUnit"));
-            FObjectProperty* Prop = FindFProperty<FObjectProperty>(Widget->GetClass(), PropertyName);
-            if (Prop)
-            {
-                Prop->SetObjectPropertyValue_InContainer(Widget, this);
-            }
-        }
-    }
-    // Initialize stats
+    // Initialize stats FIRST
     CurrentHealth = MaxHealth;
     CurrentMana = 0.0f;
     AttackCooldown = 0.0f;
@@ -109,6 +95,57 @@ void AUnitBase::BeginPlay()
 
     UE_LOG(LogTemp, Log, TEXT("✅ %s initialized - HP: %.0f/%.0f, Team: %d"),
         *UnitName, CurrentHealth, MaxHealth, (int32)Team);
+
+    // Initialize widget with a small delay to ensure it's ready
+    if (HealthBarWidget)
+    {
+        FTimerHandle WidgetInitTimer;
+        GetWorld()->GetTimerManager().SetTimer(WidgetInitTimer, [this]()
+            {
+                if (HealthBarWidget)
+                {
+                    UUserWidget* Widget = HealthBarWidget->GetWidget();
+                    if (Widget)
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT("✅ Widget found! Widget class: %s"), *Widget->GetClass()->GetName());
+
+                        // Set "OwningUnit" property
+                        FName PropertyName = FName(TEXT("OwningUnit"));
+                        FObjectProperty* Prop = FindFProperty<FObjectProperty>(Widget->GetClass(), PropertyName);
+
+                        if (Prop)
+                        {
+                            Prop->SetObjectPropertyValue_InContainer(Widget, this);
+                            UE_LOG(LogTemp, Warning, TEXT("✅ Successfully set OwningUnit property! Unit: %s, Health: %.0f/%.0f"),
+                                *UnitName, CurrentHealth, MaxHealth);
+
+                            // Force widget refresh
+                            Widget->ForceLayoutPrepass();
+                        }
+                        else
+                        {
+                            UE_LOG(LogTemp, Error, TEXT("❌ Could not find 'OwningUnit' property on widget!"));
+                            UE_LOG(LogTemp, Error, TEXT("Available properties:"));
+
+                            // List all properties for debugging
+                            for (TFieldIterator<FProperty> PropIt(Widget->GetClass()); PropIt; ++PropIt)
+                            {
+                                FProperty* Property = *PropIt;
+                                UE_LOG(LogTemp, Error, TEXT("  - %s"), *Property->GetName());
+                            }
+                        }
+                    }
+                    else
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("❌ HealthBarWidget->GetWidget() returned null after delay!"));
+                    }
+                }
+            }, 0.1f, false); // Wait 0.1 seconds for widget to initialize
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("❌ HealthBarWidget component is null!"));
+    }
 
     SetState(EUnitState::Combat);
     UE_LOG(LogTemp, Warning, TEXT("🚨 SetState called from C++ successfully! 🚨"));
