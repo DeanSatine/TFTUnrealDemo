@@ -266,7 +266,6 @@ protected:
     void FaceTarget(const FVector& TargetLocation);
     float CalculateDamageReduction(float IncomingDamage, EDamageType DamageType) const;
 
-    // ✅ RENAMED to avoid conflict with ACharacter::PlayAnimMontage
     void PlayUnitAnimMontage(UAnimMontage* Montage);
 
 private:

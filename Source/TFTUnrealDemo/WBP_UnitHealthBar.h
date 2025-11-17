@@ -25,7 +25,6 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Health Bar")
     AUnitBase* OwningUnit;
 
-    // Bind these to your progress bars in the UMG designer
     UPROPERTY(meta = (BindWidget))
     UProgressBar* HealthBar;
 

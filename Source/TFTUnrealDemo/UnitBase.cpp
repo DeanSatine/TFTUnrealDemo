@@ -10,8 +10,6 @@
 #include "TimerManager.h"
 #include "Components/WidgetComponent.h"
 
-// (Constructor stays the same...)
-
 AUnitBase::AUnitBase()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -73,8 +71,7 @@ void AUnitBase::BeginPlay()
 
     AIControllerRef = Cast<AAIController>(GetController());
 
-    // Widget initialization (currently commented out)
-    /*
+   
     if (HealthBarWidget)
     {
         FTimerHandle WidgetInitTimer;
@@ -90,16 +87,15 @@ void AUnitBase::BeginPlay()
             }
         }, 0.1f, false);
     }
-    */
+  
 
     SetState(EUnitState::Combat);
 }
 
-// ✅ ONLY ONE UpdateHealthBarWidget definition
 void AUnitBase::UpdateHealthBarWidget()
 {
-    // Currently commented out
-    /*
+
+  
     if (HealthBarWidget)
     {
         UWBP_UnitHealthBar* Widget = Cast<UWBP_UnitHealthBar>(HealthBarWidget->GetWidget());
@@ -108,7 +104,7 @@ void AUnitBase::UpdateHealthBarWidget()
             Widget->UpdateBars();
         }
     }
-    */
+ 
 }
 
 void AUnitBase::Tick(float DeltaTime)
@@ -132,8 +128,6 @@ void AUnitBase::Tick(float DeltaTime)
 
     Think();
 }
-
-// (Think, FindNewTarget, GetNearestEnemy stay the same...)
 
 void AUnitBase::Think()
 {
@@ -222,7 +216,7 @@ void AUnitBase::AttemptAutoAttack()
     }
 
     FaceTarget(CurrentTarget->GetActorLocation());
-    PlayUnitAnimMontage(AttackMontage);  // ✅ RENAMED
+    PlayUnitAnimMontage(AttackMontage);  
     DealDamage(CurrentTarget, AttackDamage, EDamageType::Physical);
     GainMana(10.0f);
     OnAttack.Broadcast(CurrentTarget);
@@ -239,10 +233,9 @@ void AUnitBase::DealDamage(AUnitBase* Target, float Damage, EDamageType DamageTy
     }
 
     FDamageInfo DamageInfo(Damage, DamageType, this);
-    Target->ApplyDamage(DamageInfo);  // ✅ RENAMED from TakeDamage
+    Target->ApplyDamage(DamageInfo); 
 }
 
-// ✅ RENAMED from TakeDamage to ApplyDamage
 void AUnitBase::ApplyDamage(const FDamageInfo& DamageInfo)
 {
     if (CurrentState == EUnitState::Bench)
@@ -322,7 +315,7 @@ void AUnitBase::CastAbility()
         FaceTarget(CurrentTarget->GetActorLocation());
     }
 
-    PlayUnitAnimMontage(AbilityMontage);  // ✅ RENAMED
+    PlayUnitAnimMontage(AbilityMontage);  
 
     FTimerHandle TimerHandle;
     GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
@@ -368,7 +361,6 @@ void AUnitBase::FaceTarget(const FVector& TargetLocation)
     }
 }
 
-// ✅ RENAMED from PlayAnimMontage to PlayUnitAnimMontage
 void AUnitBase::PlayUnitAnimMontage(UAnimMontage* Montage)
 {
     if (!Montage)
@@ -428,7 +420,7 @@ void AUnitBase::Die()
     OnUnitDeath.Broadcast(this);
     StopMovement();
     CurrentTarget = nullptr;
-    PlayUnitAnimMontage(DeathMontage);  // ✅ RENAMED
+    PlayUnitAnimMontage(DeathMontage);  
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     if (Team == ETeam::Player)
