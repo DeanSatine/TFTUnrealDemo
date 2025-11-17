@@ -1,7 +1,6 @@
-﻿// UnitBase.cpp
-
-#include "UnitBase.h"
+﻿#include "UnitBase.h"
 #include "AIController.h"
+#include "WBP_UnitHealthBar.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/CapsuleComponent.h"
@@ -11,9 +10,7 @@
 #include "TimerManager.h"
 #include "Components/WidgetComponent.h"
 
-// ============================================================================
-// CONSTRUCTOR
-// ============================================================================
+// (Constructor stays the same...)
 
 AUnitBase::AUnitBase()
 {
@@ -21,7 +18,7 @@ AUnitBase::AUnitBase()
 
     HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
     HealthBarWidget->SetupAttachment(RootComponent);
-    HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f)); 
+    HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f));
     HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
     HealthBarWidget->SetDrawSize(FVector2D(150.0f, 30.0f));
 
@@ -57,178 +54,120 @@ AUnitBase::AUnitBase()
     AttackCooldown = 0.0f;
     AIControllerRef = nullptr;
 
-    // Set this character to be controlled by AI
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-    // Configure character movement
     GetCharacterMovement()->bOrientRotationToMovement = false;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->MaxWalkSpeed = MovementSpeed;
 
-    // Disable physics simulation
     GetCapsuleComponent()->SetSimulatePhysics(false);
 }
-
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
 
 void AUnitBase::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(LogTemp, Error, TEXT("🚨🚨🚨 HELLO FROM C++ BEGINPLAY! 🚨🚨🚨"));
-    UE_LOG(LogTemp, Error, TEXT("Unit name is: %s"), *UnitName);
-
-    // Initialize stats FIRST
     CurrentHealth = MaxHealth;
     CurrentMana = 0.0f;
     AttackCooldown = 0.0f;
 
-    // Get AI Controller reference
     AIControllerRef = Cast<AAIController>(GetController());
 
-    if (!AIControllerRef)
-    {
-        UE_LOG(LogTemp, Error, TEXT("%s: No AI Controller found!"), *UnitName);
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("✅ %s initialized - HP: %.0f/%.0f, Team: %d"),
-        *UnitName, CurrentHealth, MaxHealth, (int32)Team);
-
-    // Initialize widget with a small delay to ensure it's ready
+    // Widget initialization (currently commented out)
+    /*
     if (HealthBarWidget)
     {
         FTimerHandle WidgetInitTimer;
         GetWorld()->GetTimerManager().SetTimer(WidgetInitTimer, [this]()
+        {
+            if (HealthBarWidget)
             {
-                if (HealthBarWidget)
+                UWBP_UnitHealthBar* Widget = Cast<UWBP_UnitHealthBar>(HealthBarWidget->GetWidget());
+                if (Widget)
                 {
-                    UUserWidget* Widget = HealthBarWidget->GetWidget();
-                    if (Widget)
-                    {
-                        UE_LOG(LogTemp, Warning, TEXT("✅ Widget found! Widget class: %s"), *Widget->GetClass()->GetName());
-
-                        // Set "OwningUnit" property
-                        FName PropertyName = FName(TEXT("OwningUnit"));
-                        FObjectProperty* Prop = FindFProperty<FObjectProperty>(Widget->GetClass(), PropertyName);
-
-                        if (Prop)
-                        {
-                            Prop->SetObjectPropertyValue_InContainer(Widget, this);
-                            UE_LOG(LogTemp, Warning, TEXT("✅ Successfully set OwningUnit property! Unit: %s, Health: %.0f/%.0f"),
-                                *UnitName, CurrentHealth, MaxHealth);
-
-                            // Force widget refresh
-                            Widget->ForceLayoutPrepass();
-                        }
-                        else
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("❌ Could not find 'OwningUnit' property on widget!"));
-                            UE_LOG(LogTemp, Error, TEXT("Available properties:"));
-
-                            // List all properties for debugging
-                            for (TFieldIterator<FProperty> PropIt(Widget->GetClass()); PropIt; ++PropIt)
-                            {
-                                FProperty* Property = *PropIt;
-                                UE_LOG(LogTemp, Error, TEXT("  - %s"), *Property->GetName());
-                            }
-                        }
-                    }
-                    else
-                    {
-                        UE_LOG(LogTemp, Error, TEXT("❌ HealthBarWidget->GetWidget() returned null after delay!"));
-                    }
+                    Widget->SetOwningUnit(this);
                 }
-            }, 0.1f, false); // Wait 0.1 seconds for widget to initialize
+            }
+        }, 0.1f, false);
     }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("❌ HealthBarWidget component is null!"));
-    }
+    */
 
     SetState(EUnitState::Combat);
-    UE_LOG(LogTemp, Warning, TEXT("🚨 SetState called from C++ successfully! 🚨"));
 }
 
-// ============================================================================
-// TICK
-// ============================================================================
+// ✅ ONLY ONE UpdateHealthBarWidget definition
+void AUnitBase::UpdateHealthBarWidget()
+{
+    // Currently commented out
+    /*
+    if (HealthBarWidget)
+    {
+        UWBP_UnitHealthBar* Widget = Cast<UWBP_UnitHealthBar>(HealthBarWidget->GetWidget());
+        if (Widget)
+        {
+            Widget->UpdateBars();
+        }
+    }
+    */
+}
 
 void AUnitBase::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    // Only think during combat
     if (!bIsAlive || CurrentState != EUnitState::Combat || bIsCastingAbility)
     {
         return;
     }
 
-    // Reduce attack cooldown
     if (AttackCooldown > 0.0f)
     {
         AttackCooldown -= DeltaTime;
     }
 
-    // Face target if we have one
     if (CurrentTarget)
     {
         FaceTarget(CurrentTarget->GetActorLocation());
     }
 
-    // Main AI logic
     Think();
 }
 
-// ============================================================================
-// AI - THINK FUNCTION
-// ============================================================================
+// (Think, FindNewTarget, GetNearestEnemy stay the same...)
 
 void AUnitBase::Think()
 {
-    // 1. Check if dead
     if (CurrentHealth <= 0.0f)
     {
         return;
     }
 
-    // 2. Check if we have a valid target
     if (!CurrentTarget || !CurrentTarget->bIsAlive || CurrentTarget->CurrentState == EUnitState::Bench)
     {
         FindNewTarget();
         return;
     }
 
-    // 3. Check distance to target
     float DistanceToTarget = FVector::Dist(GetActorLocation(), CurrentTarget->GetActorLocation());
 
-    // 4. If too far, move closer
     if (DistanceToTarget > AttackRange)
     {
         MoveToTarget();
         return;
     }
 
-    // 5. If in range, stop and prepare to attack
     StopMovement();
 
-    // 6. Check if we should cast ability (mana full)
     if (CurrentMana >= MaxMana)
     {
         CastAbility();
     }
 
-    // 7. Auto attack on cooldown
     if (AttackCooldown <= 0.0f && bCanAttack)
     {
         AttemptAutoAttack();
     }
 }
-
-// ============================================================================
-// AI - TARGET FINDING
-// ============================================================================
 
 void AUnitBase::FindNewTarget()
 {
@@ -238,10 +177,6 @@ void AUnitBase::FindNewTarget()
     {
         UE_LOG(LogTemp, Log, TEXT("🎯 %s found new target: %s"), *UnitName, *CurrentTarget->UnitName);
         AttackCooldown = 0.0f;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("❌ %s could not find a target!"), *UnitName);
     }
 }
 
@@ -274,26 +209,20 @@ AUnitBase* AUnitBase::GetNearestEnemy()
     return BestTarget;
 }
 
-// ============================================================================
-// COMBAT - AUTO ATTACK
-// ============================================================================
-
 void AUnitBase::AttemptAutoAttack()
 {
     if (!CurrentTarget || !CurrentTarget->bIsAlive)
     {
-        UE_LOG(LogTemp, Warning, TEXT("⚠️ %s tried to attack invalid target"), *UnitName);
         return;
     }
 
     if (CurrentTarget->CurrentState == EUnitState::Bench)
     {
-        UE_LOG(LogTemp, Warning, TEXT("⚠️ %s tried to attack benched target"), *UnitName);
         return;
     }
 
     FaceTarget(CurrentTarget->GetActorLocation());
-    PlayAnimMontage(AttackMontage);
+    PlayUnitAnimMontage(AttackMontage);  // ✅ RENAMED
     DealDamage(CurrentTarget, AttackDamage, EDamageType::Physical);
     GainMana(10.0f);
     OnAttack.Broadcast(CurrentTarget);
@@ -301,10 +230,6 @@ void AUnitBase::AttemptAutoAttack()
 
     UE_LOG(LogTemp, Log, TEXT("⚔️ %s attacked %s for %.1f damage"), *UnitName, *CurrentTarget->UnitName, AttackDamage);
 }
-
-// ============================================================================
-// COMBAT - DAMAGE SYSTEM
-// ============================================================================
 
 void AUnitBase::DealDamage(AUnitBase* Target, float Damage, EDamageType DamageType)
 {
@@ -314,31 +239,14 @@ void AUnitBase::DealDamage(AUnitBase* Target, float Damage, EDamageType DamageTy
     }
 
     FDamageInfo DamageInfo(Damage, DamageType, this);
-    Target->TakeDamage(DamageInfo);
+    Target->ApplyDamage(DamageInfo);  // ✅ RENAMED from TakeDamage
 }
 
-void AUnitBase::UpdateHealthBarWidget()
-{
-    if (HealthBarWidget)
-    {
-        UUserWidget* Widget = HealthBarWidget->GetWidget();
-        if (Widget)
-        {
-            // Call the UpdateBars function on the widget
-            UFunction* UpdateBarsFunc = Widget->FindFunction(FName(TEXT("UpdateBars")));
-            if (UpdateBarsFunc)
-            {
-                Widget->ProcessEvent(UpdateBarsFunc, nullptr);
-            }
-        }
-    }
-}
-
-void AUnitBase::TakeDamage(const FDamageInfo& DamageInfo)
+// ✅ RENAMED from TakeDamage to ApplyDamage
+void AUnitBase::ApplyDamage(const FDamageInfo& DamageInfo)
 {
     if (CurrentState == EUnitState::Bench)
     {
-        UE_LOG(LogTemp, Log, TEXT("🚫 %s is benched and ignored damage"), *UnitName);
         return;
     }
 
@@ -386,22 +294,15 @@ float AUnitBase::CalculateDamageReduction(float IncomingDamage, EDamageType Dama
     return FinalDamage;
 }
 
-// ============================================================================
-// COMBAT - MANA SYSTEM
-// ============================================================================
-
 void AUnitBase::GainMana(float Amount)
 {
     CurrentMana += Amount;
-
-    // ADD THIS: Update the mana bar widget
     UpdateHealthBarWidget();
 
     UE_LOG(LogTemp, Log, TEXT("✨ %s gained %.1f mana → %.1f/%.1f"), *UnitName, Amount, CurrentMana, MaxMana);
 
     if (CurrentMana >= MaxMana)
     {
-        UE_LOG(LogTemp, Log, TEXT("🌟 %s mana full! Casting ability..."), *UnitName);
         CastAbility();
         CurrentMana = 0.0f;
     }
@@ -421,21 +322,14 @@ void AUnitBase::CastAbility()
         FaceTarget(CurrentTarget->GetActorLocation());
     }
 
-    PlayAnimMontage(AbilityMontage);
-
-    UE_LOG(LogTemp, Log, TEXT("🔮 %s casting ability!"), *UnitName);
+    PlayUnitAnimMontage(AbilityMontage);  // ✅ RENAMED
 
     FTimerHandle TimerHandle;
     GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
         {
             bIsCastingAbility = false;
-            UE_LOG(LogTemp, Log, TEXT("✅ %s finished casting ability"), *UnitName);
         }, 1.5f, false);
 }
-
-// ============================================================================
-// MOVEMENT
-// ============================================================================
 
 void AUnitBase::MoveToTarget()
 {
@@ -474,11 +368,8 @@ void AUnitBase::FaceTarget(const FVector& TargetLocation)
     }
 }
 
-// ============================================================================
-// ANIMATION
-// ============================================================================
-
-void AUnitBase::PlayAnimMontage(UAnimMontage* Montage)
+// ✅ RENAMED from PlayAnimMontage to PlayUnitAnimMontage
+void AUnitBase::PlayUnitAnimMontage(UAnimMontage* Montage)
 {
     if (!Montage)
     {
@@ -491,10 +382,6 @@ void AUnitBase::PlayAnimMontage(UAnimMontage* Montage)
         AnimInstance->Montage_Play(Montage);
     }
 }
-
-// ============================================================================
-// STATE MANAGEMENT
-// ============================================================================
 
 void AUnitBase::SetState(EUnitState NewState)
 {
@@ -513,14 +400,12 @@ void AUnitBase::SetState(EUnitState NewState)
         bCanMove = false;
         bCanAttack = false;
         StopMovement();
-        UE_LOG(LogTemp, Log, TEXT("🪑 %s benched"), *UnitName);
         break;
 
     case EUnitState::BoardIdle:
         bCanMove = true;
         bCanAttack = true;
         AttackCooldown = 0.0f;
-        UE_LOG(LogTemp, Log, TEXT("📍 %s placed on board"), *UnitName);
         break;
 
     case EUnitState::Combat:
@@ -528,14 +413,9 @@ void AUnitBase::SetState(EUnitState NewState)
         AttackCooldown = 0.0f;
         bCanMove = true;
         bCanAttack = true;
-        UE_LOG(LogTemp, Log, TEXT("⚔️ %s entered combat!"), *UnitName);
         break;
     }
 }
-
-// ============================================================================
-// DEATH
-// ============================================================================
 
 void AUnitBase::Die()
 {
@@ -544,13 +424,11 @@ void AUnitBase::Die()
         return;
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("💀 %s died!"), *UnitName);
-
     bIsAlive = false;
     OnUnitDeath.Broadcast(this);
     StopMovement();
     CurrentTarget = nullptr;
-    PlayAnimMontage(DeathMontage);
+    PlayUnitAnimMontage(DeathMontage);  // ✅ RENAMED
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     if (Team == ETeam::Player)
@@ -560,7 +438,6 @@ void AUnitBase::Die()
             {
                 SetActorHiddenInGame(true);
                 SetActorEnableCollision(false);
-                UE_LOG(LogTemp, Log, TEXT("👻 %s hidden after death"), *UnitName);
             }, 1.5f, false);
     }
     else
@@ -568,15 +445,10 @@ void AUnitBase::Die()
         FTimerHandle TimerHandle;
         GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
             {
-                UE_LOG(LogTemp, Log, TEXT("🗑️ %s destroyed"), *UnitName);
                 Destroy();
             }, 2.0f, false);
     }
 }
-
-// ============================================================================
-// RESET FUNCTIONS
-// ============================================================================
 
 void AUnitBase::ResetAfterCombat()
 {
@@ -590,13 +462,10 @@ void AUnitBase::ResetAfterCombat()
     CurrentTarget = nullptr;
     SetState(EUnitState::BoardIdle);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-
-    UE_LOG(LogTemp, Log, TEXT("🔄 %s reset for new round"), *UnitName);
 }
 
 void AUnitBase::FullResetToPrep()
 {
     ResetAfterCombat();
     SetState(EUnitState::Bench);
-    UE_LOG(LogTemp, Log, TEXT("🔄 %s fully reset to prep phase"), *UnitName);
 }

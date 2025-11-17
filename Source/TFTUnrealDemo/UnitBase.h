@@ -1,5 +1,4 @@
-// UnitBase.h
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -9,6 +8,7 @@
 class UAnimMontage;
 class AAIController;
 class UWidgetComponent;
+class UWBP_UnitHealthBar;
 
 // ============================================================================
 // ENUMS
@@ -169,6 +169,13 @@ public:
     float StoppingDistance;
 
     // ========================================================================
+    // PROPERTIES - UI
+    // ========================================================================
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+    UWidgetComponent* HealthBarWidget;
+
+    // ========================================================================
     // PUBLIC METHODS - AI
     // ========================================================================
 
@@ -184,8 +191,6 @@ public:
     // ========================================================================
     // PUBLIC METHODS - Combat
     // ========================================================================
-    UFUNCTION(BlueprintCallable, Category = "Unit Info")
-    AUnitBase* GetOwningUnit() { return this; }
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void AttemptAutoAttack();
@@ -193,8 +198,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void DealDamage(AUnitBase* Target, float Damage, EDamageType DamageType);
 
+    // ✅ RENAMED to avoid conflict with APawn::TakeDamage
     UFUNCTION(BlueprintCallable, Category = "Combat")
-    void TakeDamage(const FDamageInfo& DamageInfo);
+    void ApplyDamage(const FDamageInfo& DamageInfo);
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void GainMana(float Amount);
@@ -202,12 +208,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     virtual void CastAbility();
 
-    // ========================================================================
-    // PROPERTIES - UI
-    // ========================================================================
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
-    UWidgetComponent* HealthBarWidget;
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void Die();
 
     // ========================================================================
     // PUBLIC METHODS - Movement
@@ -238,13 +240,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Reset")
     void FullResetToPrep();
-    void UpdateHealthBarWidget();
-    // ========================================================================
-    // PUBLIC METHODS - Death
-    // ========================================================================
 
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void Die();
+    void UpdateHealthBarWidget();
 
     // ========================================================================
     // EVENTS (Delegates)
@@ -264,17 +261,16 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
 
     void FaceTarget(const FVector& TargetLocation);
     float CalculateDamageReduction(float IncomingDamage, EDamageType DamageType) const;
-    void PlayAnimMontage(UAnimMontage* Montage);
+
+    // ✅ RENAMED to avoid conflict with ACharacter::PlayAnimMontage
+    void PlayUnitAnimMontage(UAnimMontage* Montage);
 
 private:
     EUnitState CurrentState;
     float AttackCooldown;
     AAIController* AIControllerRef;
-
-public:
-    virtual void Tick(float DeltaTime) override;
-
 };

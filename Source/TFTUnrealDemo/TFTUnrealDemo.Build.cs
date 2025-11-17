@@ -16,7 +16,9 @@ public class TFTUnrealDemo : ModuleRules
             "AIModule",
             "GameplayTasks",
             "NavigationSystem",
-            "UMG" 
+            "UMG",
+            "Slate",          
+            "SlateCore"        
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
