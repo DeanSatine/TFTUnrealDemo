@@ -37,12 +37,18 @@ AUnitBase::AUnitBase()
     MaxHealth = 100.0f;
     CurrentHealth = 100.0f;
     AttackDamage = 10.0f;
+    AbilityPower = 100.0f;  
     AttackSpeed = 1.0f;
     AttackRange = 150.0f;
     Armor = 0.0f;
     MagicResist = 0.0f;
     MaxMana = 50.0f;
     CurrentMana = 0.0f;
+
+    CurrentShield = 0.0f;  
+    MaxShield = 0.0f;      
+    bHasShield = false;    
+    ShieldDuration = 0.0f;
 
     bIsAlive = true;
     bCanMove = true;
@@ -182,6 +188,87 @@ void AUnitBase::FindNewTarget()
         AttackCooldown = 0.0f;
     }
 }
+void AUnitBase::ApplyShield(float ShieldAmount, float Duration)
+{
+    CurrentShield = ShieldAmount;
+    MaxShield = ShieldAmount;
+    bHasShield = true;
+    ShieldDuration = Duration;
+
+    UE_LOG(LogTemp, Log, TEXT("🛡️ %s gained %.0f shield for %.1fs"), *UnitName, ShieldAmount, Duration);
+
+    // Timer to remove shield after duration
+    FTimerHandle ShieldTimer;
+    GetWorld()->GetTimerManager().SetTimer(ShieldTimer, [this]()
+        {
+            RemoveShield();
+        }, Duration, false);
+}
+
+void AUnitBase::RemoveShield()
+{
+    CurrentShield = 0.0f;
+    MaxShield = 0.0f;
+    bHasShield = false;
+
+    UE_LOG(LogTemp, Log, TEXT("🛡️ %s shield expired"), *UnitName);
+}
+
+AUnitBase* AUnitBase::GetNearestAlly()
+{
+    TArray<AActor*> AllUnits;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AUnitBase::StaticClass(), AllUnits);
+
+    AUnitBase* NearestAlly = nullptr;
+    float BestDistance = FLT_MAX;
+
+    for (AActor* Actor : AllUnits)
+    {
+        AUnitBase* Unit = Cast<AUnitBase>(Actor);
+
+        if (!Unit || Unit == this) continue;
+        if (!Unit->bIsAlive) continue;
+        if (Unit->Team != this->Team) continue; // ✅ Same team
+        if (Unit->CurrentState != EUnitState::Combat) continue;
+
+        float Distance = FVector::Dist(GetActorLocation(), Unit->GetActorLocation());
+
+        if (Distance < BestDistance)
+        {
+            BestDistance = Distance;
+            NearestAlly = Unit;
+        }
+    }
+
+    return NearestAlly;
+}
+
+// ✅ Change CastAbility to be virtual with _Implementation
+void AUnitBase::CastAbility_Implementation()
+{
+    if (bIsCastingAbility)
+    {
+        return;
+    }
+
+    bIsCastingAbility = true;
+
+    if (CurrentTarget)
+    {
+        FaceTarget(CurrentTarget->GetActorLocation());
+    }
+
+    PlayUnitAnimMontage(AbilityMontage);
+
+    UE_LOG(LogTemp, Log, TEXT("🔮 %s casting base ability!"), *UnitName);
+
+    FTimerHandle TimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+        {
+            bIsCastingAbility = false;
+        }, 1.5f, false);
+}
+
 
 AUnitBase* AUnitBase::GetNearestEnemy()
 {
@@ -369,29 +456,6 @@ void AUnitBase::GainMana(float Amount)
         CastAbility();
         CurrentMana = 0.0f;
     }
-}
-
-void AUnitBase::CastAbility()
-{
-    if (bIsCastingAbility)
-    {
-        return;
-    }
-
-    bIsCastingAbility = true;
-
-    if (CurrentTarget)
-    {
-        FaceTarget(CurrentTarget->GetActorLocation());
-    }
-
-    PlayUnitAnimMontage(AbilityMontage);  
-
-    FTimerHandle TimerHandle;
-    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
-        {
-            bIsCastingAbility = false;
-        }, 1.5f, false);
 }
 
 void AUnitBase::MoveToTarget()

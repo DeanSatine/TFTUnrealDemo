@@ -110,6 +110,9 @@ public:
     float AttackDamage;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    float AbilityPower;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
     float AttackSpeed;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
@@ -126,6 +129,12 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Stats|Mana")
     float CurrentMana;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Stats")
+    float CurrentShield;
+    
+    UPROPERTY(BlueprintReadOnly, Category = "Stats")
+    float MaxShield;
 
     // ========================================================================
     // PROPERTIES - Combat State
@@ -145,6 +154,12 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Combat")
     AUnitBase* CurrentTarget;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    bool bHasShield;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    float ShieldDuration;
 
     // ========================================================================
     // PROPERTIES - Animation
@@ -222,7 +237,18 @@ public:
     void GainMana(float Amount);
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
-    virtual void CastAbility();
+    void ApplyShield(float ShieldAmount, float Duration);
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void RemoveShield();
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    AUnitBase* GetNearestAlly();
+
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Combat")
+    void CastAbility();
+
+    virtual void CastAbility_Implementation();
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void Die();
