@@ -9,6 +9,10 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Components/WidgetComponent.h"
+#include "NiagaraSystem.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Projectile.h"
 
 AUnitBase::AUnitBase()
 {
@@ -19,6 +23,11 @@ AUnitBase::AUnitBase()
     HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f));
     HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
     HealthBarWidget->SetDrawSize(FVector2D(150.0f, 30.0f));
+
+    HitImpactVFX = nullptr;
+    ProjectileClass = nullptr;
+    ProjectileSocketName = FName("Muzzle");
+    bIsRangedUnit = false;
 
     UnitName = TEXT("Unit");
     StarLevel = 1;
@@ -216,13 +225,57 @@ void AUnitBase::AttemptAutoAttack()
     }
 
     FaceTarget(CurrentTarget->GetActorLocation());
-    PlayUnitAnimMontage(AttackMontage);  
-    DealDamage(CurrentTarget, AttackDamage, EDamageType::Physical);
+    PlayUnitAnimMontage(AttackMontage);
+
+    // ✅ RANGED: Spawn projectile
+    if (bIsRangedUnit && ProjectileClass)
+    {
+        FVector SpawnLocation;
+
+        // Try to get socket location
+        if (GetMesh()->DoesSocketExist(ProjectileSocketName))
+        {
+            SpawnLocation = GetMesh()->GetSocketLocation(ProjectileSocketName);
+        }
+        else
+        {
+            // Fallback to actor location + offset
+            SpawnLocation = GetActorLocation() + GetActorForwardVector() * 50.0f + FVector(0, 0, 50.0f);
+        }
+
+        FRotator SpawnRotation = (CurrentTarget->GetActorLocation() - SpawnLocation).Rotation();
+
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.Instigator = GetInstigator();
+
+        AProjectile* Projectile = GetWorld()->SpawnActor<AProjectile>(
+            ProjectileClass,
+            SpawnLocation,
+            SpawnRotation,
+            SpawnParams
+        );
+
+        if (Projectile)
+        {
+            Projectile->Damage = AttackDamage;
+            Projectile->TargetUnit = CurrentTarget;
+            Projectile->OwnerUnit = this;
+
+            UE_LOG(LogTemp, Log, TEXT("🏹 %s fired projectile at %s"), *UnitName, *CurrentTarget->UnitName);
+        }
+    }
+    else
+    {
+        // ✅ MELEE: Deal damage instantly
+        DealDamage(CurrentTarget, AttackDamage, EDamageType::Physical);
+    }
+
     GainMana(10.0f);
     OnAttack.Broadcast(CurrentTarget);
     AttackCooldown = 1.0f / AttackSpeed;
 
-    UE_LOG(LogTemp, Log, TEXT("⚔️ %s attacked %s for %.1f damage"), *UnitName, *CurrentTarget->UnitName, AttackDamage);
+    UE_LOG(LogTemp, Log, TEXT("⚔️ %s attacked %s"), *UnitName, *CurrentTarget->UnitName);
 }
 
 void AUnitBase::DealDamage(AUnitBase* Target, float Damage, EDamageType DamageType)
@@ -249,6 +302,23 @@ void AUnitBase::ApplyDamage(const FDamageInfo& DamageInfo)
     if (FinalDamage > 0.0f)
     {
         GainMana(1.0f);
+
+        if (HitImpactVFX)
+        {
+            FVector ImpactLocation = GetActorLocation() + FVector(0, 0, 50.0f);
+
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(),
+                HitImpactVFX,
+                ImpactLocation,
+                FRotator::ZeroRotator,
+                FVector(1.0f),  
+                true,           
+                true,          
+                ENCPoolMethod::None,
+                true            
+            );
+        }
     }
 
     UpdateHealthBarWidget();
@@ -292,7 +362,7 @@ void AUnitBase::GainMana(float Amount)
     CurrentMana += Amount;
     UpdateHealthBarWidget();
 
-    UE_LOG(LogTemp, Log, TEXT("✨ %s gained %.1f mana → %.1f/%.1f"), *UnitName, Amount, CurrentMana, MaxMana);
+    UE_LOG(LogTemp, Log, TEXT("%s gained %.1f mana → %.1f/%.1f"), *UnitName, Amount, CurrentMana, MaxMana);
 
     if (CurrentMana >= MaxMana)
     {

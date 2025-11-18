@@ -9,6 +9,7 @@ class UAnimMontage;
 class AAIController;
 class UWidgetComponent;
 class UWBP_UnitHealthBar;
+class UNiagaraSystem;
 
 // ============================================================================
 // ENUMS
@@ -169,6 +170,22 @@ public:
     float StoppingDistance;
 
     // ========================================================================
+    // PROPERTIES - VFX 
+    // ========================================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+    UNiagaraSystem* HitImpactVFX;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+    TSubclassOf<AActor> ProjectileClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+    FName ProjectileSocketName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+    bool bIsRangedUnit;
+
+    // ========================================================================
     // PROPERTIES - UI
     // ========================================================================
 
@@ -198,7 +215,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void DealDamage(AUnitBase* Target, float Damage, EDamageType DamageType);
 
-    // ✅ RENAMED to avoid conflict with APawn::TakeDamage
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyDamage(const FDamageInfo& DamageInfo);
 
