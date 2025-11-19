@@ -3,6 +3,7 @@
 #include "WBP_UnitHealthBar.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "AbilityData.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -23,7 +24,7 @@ AUnitBase::AUnitBase()
     HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f));
     HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
     HealthBarWidget->SetDrawSize(FVector2D(150.0f, 30.0f));
-
+    AbilityData = nullptr;
     HitImpactVFX = nullptr;
     ProjectileClass = nullptr;
     ProjectileSocketName = FName("Muzzle");
@@ -243,10 +244,9 @@ AUnitBase* AUnitBase::GetNearestAlly()
     return NearestAlly;
 }
 
-// ✅ Change CastAbility to be virtual with _Implementation
 void AUnitBase::CastAbility_Implementation()
 {
-    if (bIsCastingAbility)
+    if (bIsCastingAbility || !AbilityData)
     {
         return;
     }
@@ -258,15 +258,149 @@ void AUnitBase::CastAbility_Implementation()
         FaceTarget(CurrentTarget->GetActorLocation());
     }
 
-    PlayUnitAnimMontage(AbilityMontage);
+    // Use ability's animation if set, otherwise use default
+    UAnimMontage* MontageToPlay = AbilityData->AbilityMontage ? AbilityData->AbilityMontage : AbilityMontage;
+    PlayUnitAnimMontage(MontageToPlay);
 
-    UE_LOG(LogTemp, Log, TEXT("🔮 %s casting base ability!"), *UnitName);
+    // Spawn cast VFX
+    if (AbilityData->CastVFX)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+            GetWorld(),
+            AbilityData->CastVFX,
+            GetActorLocation(),
+            GetActorRotation()
+        );
+    }
 
+    UE_LOG(LogTemp, Log, TEXT("🔮 %s casting %s!"), *UnitName, *AbilityData->AbilityName.ToString());
+
+    // Execute ability based on type
+    switch (AbilityData->AbilityType)
+    {
+    case EAbilityType::Shield:
+        ExecuteShieldAbility();
+        break;
+
+    case EAbilityType::Damage:
+        ExecuteDamageAbility();
+        break;
+
+        // Add more types as needed
+    default:
+        break;
+    }
+
+    // End casting after duration
     FTimerHandle TimerHandle;
     GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
         {
             bIsCastingAbility = false;
-        }, 1.5f, false);
+        }, AbilityData->CastTime, false);
+}
+
+void AUnitBase::ExecuteShieldAbility()
+{
+    if (!AbilityData)
+    {
+        return;
+    }
+
+    // Calculate shield amount based on star level and AP
+    float BaseShield = AbilityData->GetBaseShield(StarLevel);
+    float APRatio = AbilityData->GetAPRatio(StarLevel);
+    float TotalShield = BaseShield + (AbilityPower * APRatio);
+
+    // Apply shield to primary target
+    AUnitBase* PrimaryTarget = GetAbilityTarget(AbilityData->PrimaryTarget);
+    if (PrimaryTarget)
+    {
+        PrimaryTarget->ApplyShield(TotalShield, AbilityData->ShieldDuration);
+
+        // Spawn impact VFX
+        if (AbilityData->ImpactVFX)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(),
+                AbilityData->ImpactVFX,
+                PrimaryTarget->GetActorLocation() + FVector(0, 0, 50.0f),
+                FRotator::ZeroRotator
+            );
+        }
+    }
+
+    // Apply to secondary target if needed
+    if (AbilityData->bHasSecondaryTarget)
+    {
+        AUnitBase* SecondaryTarget = GetAbilityTarget(AbilityData->SecondaryTarget);
+        if (SecondaryTarget && SecondaryTarget != PrimaryTarget)
+        {
+            float SecondaryShield = TotalShield * AbilityData->SecondaryTargetMultiplier;
+            SecondaryTarget->ApplyShield(SecondaryShield, AbilityData->ShieldDuration);
+
+            if (AbilityData->ImpactVFX)
+            {
+                UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                    GetWorld(),
+                    AbilityData->ImpactVFX,
+                    SecondaryTarget->GetActorLocation() + FVector(0, 0, 50.0f),
+                    FRotator::ZeroRotator
+                );
+            }
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("🛡️ %s granted %.0f shield!"), *UnitName, TotalShield);
+}
+
+void AUnitBase::ExecuteDamageAbility()
+{
+    if (!AbilityData)
+    {
+        return;
+    }
+
+    float BaseDamage = AbilityData->GetBaseDamage(StarLevel);
+    float APRatio = AbilityData->GetDamageAPRatio(StarLevel);
+    float TotalDamage = BaseDamage + (AbilityPower * APRatio);
+
+    AUnitBase* Target = GetAbilityTarget(AbilityData->PrimaryTarget);
+    if (Target)
+    {
+        DealDamage(Target, TotalDamage, EDamageType::Magical);
+
+        if (AbilityData->ImpactVFX)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(),
+                AbilityData->ImpactVFX,
+                Target->GetActorLocation() + FVector(0, 0, 50.0f),
+                FRotator::ZeroRotator
+            );
+        }
+    }
+}
+
+AUnitBase* AUnitBase::GetAbilityTarget(EAbilityTargetType TargetType)
+{
+    switch (TargetType)
+    {
+    case EAbilityTargetType::Self:
+        return this;
+
+    case EAbilityTargetType::NearestAlly:
+        return GetNearestAlly();
+
+    case EAbilityTargetType::NearestEnemy:
+        return GetNearestEnemy();
+
+    case EAbilityTargetType::CurrentTarget:
+        return CurrentTarget;
+
+        // Add more targeting types as needed
+    default:
+        return nullptr;
+    }
 }
 
 

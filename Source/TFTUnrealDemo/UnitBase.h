@@ -10,6 +10,8 @@ class AAIController;
 class UWidgetComponent;
 class UWBP_UnitHealthBar;
 class UNiagaraSystem;
+class UAbilityData;
+enum class EAbilityTargetType : uint8;
 
 // ============================================================================
 // ENUMS
@@ -201,6 +203,13 @@ public:
     bool bIsRangedUnit;
 
     // ========================================================================
+    // PROPERTIES - Ability
+    // ========================================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+    UAbilityData* AbilityData;
+
+    // ========================================================================
     // PROPERTIES - UI
     // ========================================================================
 
@@ -310,6 +319,10 @@ protected:
 
     void PlayUnitAnimMontage(UAnimMontage* Montage);
 
+    void ExecuteShieldAbility();
+    void ExecuteDamageAbility();
+
+    AUnitBase* GetAbilityTarget(EAbilityTargetType TargetType);
 private:
     EUnitState CurrentState;
     float AttackCooldown;
